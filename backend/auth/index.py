@@ -28,7 +28,7 @@ def resp(status: int, body: dict) -> dict:
 
 
 def handler(event: dict, context) -> dict:
-    """Авторизация: login, logout, me, setup"""
+    """Авторизация: login, logout, me. Создание пользователей — только через Admin-панель."""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
@@ -39,7 +39,6 @@ def handler(event: dict, context) -> dict:
     if method == "POST":
         body = json.loads(event.get("body") or "{}")
 
-    # Роутинг по URL или по _path в теле запроса
     _path = body.get("_path", "")
     action = ""
     for key in [path, _path]:
@@ -47,19 +46,23 @@ def handler(event: dict, context) -> dict:
             action = "login"; break
         if key.endswith("/logout"):
             action = "logout"; break
-        if key.endswith("/setup"):
-            action = "setup"; break
         if key.endswith("/me"):
             action = "me"; break
+        if key.endswith("/create-user"):
+            action = "create_user"; break
+        if key.endswith("/users"):
+            action = "list_users"; break
 
     if action == "login":
         return handle_login(body)
     if action == "logout":
         return handle_logout(event)
-    if action == "setup":
-        return handle_setup(body)
     if action == "me":
         return handle_me(event)
+    if action == "create_user":
+        return handle_create_user(body, event)
+    if action == "list_users":
+        return handle_list_users(event)
 
     return resp(404, {"error": "not found"})
 
@@ -146,41 +149,71 @@ def handle_me(event: dict) -> dict:
     return resp(200, {"ok": True, "username": row[0], "role": row[1]})
 
 
-def handle_setup(body: dict) -> dict:
-    """Первичная установка: создаёт admin если пользователей нет"""
+def get_token_role(event: dict) -> str | None:
+    """Возвращает роль по токену из заголовка, или None если токен недействителен"""
+    token = (event.get("headers") or {}).get("X-Auth-Token", "")
+    if not token:
+        return None
     conn = get_conn()
     cur = conn.cursor()
+    cur.execute("SELECT role FROM sessions WHERE token = %s AND expires_at > NOW()", (token,))
+    row = cur.fetchone()
+    cur.close(); conn.close()
+    return row[0] if row else None
 
-    cur.execute("SELECT COUNT(*) FROM users")
-    count = cur.fetchone()[0]
 
-    # Разрешаем setup только если нет пользователей ИЛИ передан секретный ключ
-    setup_key = body.get("setup_key", "")
-    if count > 0 and setup_key != "APX_SETUP_2026":
-        cur.close(); conn.close()
-        return resp(403, {"error": "Пользователи уже существуют"})
+def handle_create_user(body: dict, event: dict) -> dict:
+    """Создание/обновление пользователя — только для администратора"""
+    role = get_token_role(event)
+    if role != "admin":
+        return resp(403, {"error": "Доступ запрещён. Только администратор может создавать пользователей."})
 
     username = body.get("username", "").strip()
     password = body.get("password", "")
-    full_name = body.get("full_name", "Администратор")
-    role = body.get("role", "admin")
+    full_name = body.get("full_name", "").strip()
+    new_role = body.get("role", "user")
 
     if not username or not password:
-        cur.close(); conn.close()
-        return resp(400, {"error": "username и password обязательны"})
+        return resp(400, {"error": "Логин и пароль обязательны"})
+    if len(password) < 6:
+        return resp(400, {"error": "Пароль должен быть не менее 6 символов"})
 
     pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
+    conn = get_conn()
+    cur = conn.cursor()
     cur.execute(
         """INSERT INTO users (username, password_hash, full_name, role)
            VALUES (%s, %s, %s, %s)
            ON CONFLICT (username) DO UPDATE SET
                password_hash = EXCLUDED.password_hash,
                full_name = EXCLUDED.full_name,
-               role = EXCLUDED.role""",
-        (username, pw_hash, full_name, role)
+               role = EXCLUDED.role,
+               updated_at = NOW()""",
+        (username, pw_hash, full_name or username, new_role)
     )
     conn.commit()
+
+    # Список всех пользователей для ответа
+    cur.execute("SELECT id, username, full_name, role, is_active, created_at FROM users ORDER BY created_at")
+    rows = cur.fetchall()
     cur.close(); conn.close()
 
-    return resp(200, {"ok": True, "message": f"Пользователь {username} создан/обновлён"})
+    users = [{"id": r[0], "username": r[1], "full_name": r[2], "role": r[3], "is_active": r[4]} for r in rows]
+    return resp(200, {"ok": True, "message": f"Пользователь «{username}» создан", "users": users})
+
+
+def handle_list_users(event: dict) -> dict:
+    """Список пользователей — только для администратора"""
+    role = get_token_role(event)
+    if role != "admin":
+        return resp(403, {"error": "Доступ запрещён"})
+
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT id, username, full_name, role, is_active, created_at FROM users ORDER BY created_at")
+    rows = cur.fetchall()
+    cur.close(); conn.close()
+
+    users = [{"id": r[0], "username": r[1], "full_name": r[2], "role": r[3], "is_active": r[4]} for r in rows]
+    return resp(200, users)

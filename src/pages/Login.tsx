@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Icon from '@/components/ui/icon';
 
 const AUTH_URL = 'https://functions.poehali.dev/657f0b95-ba26-4bf1-8a1b-481465de6d69';
@@ -17,21 +17,7 @@ export default function Login({ onLogin }: LoginProps) {
   const [loading, setLoading] = useState(false);
   const [fountainHint, setFountainHint] = useState(false);
 
-  // Авто-создание первого администратора при первом визите
-  useEffect(() => {
-    fetch(`${AUTH_URL}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: 'Администратор',
-        password: 'Cehbrfns25&Vfyuecns77!',
-        full_name: 'Администратор',
-        role: 'admin',
-        setup_key: 'APX_SETUP_2026',
-        _path: '/setup',
-      }),
-    }).catch(() => {});
-  }, []);
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
