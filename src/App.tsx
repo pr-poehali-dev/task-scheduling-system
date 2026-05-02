@@ -10,6 +10,7 @@ import Objects from './pages/Objects';
 import Archive from './pages/Archive';
 import Statistics from './pages/Statistics';
 import Admin from './pages/Admin';
+import Import from './pages/Import';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -23,6 +24,7 @@ export default function App() {
       case 'archive': return <Archive />;
       case 'statistics': return <Statistics />;
       case 'admin': return <Admin />;
+      case 'import': return <Import />;
       default: return <Dashboard onNavigate={setCurrentPage} />;
     }
   };

@@ -19,6 +19,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
     archive: 'Архив нарядов',
     statistics: 'Статистика и отчёты',
     admin: 'Администрирование',
+    import: 'Импорт данных из Excel',
   };
 
   return (

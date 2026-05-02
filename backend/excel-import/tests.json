@@ -1,0 +1,20 @@
+{
+  "tests": [
+    {
+      "name": "GET log",
+      "method": "GET",
+      "path": "/log",
+      "expectedStatus": 200,
+      "expectedBody": [],
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "GET employees data",
+      "method": "GET",
+      "path": "/?type=employees",
+      "expectedStatus": 200,
+      "expectedBody": [],
+      "bodyMatcher": "partial"
+    }
+  ]
+}

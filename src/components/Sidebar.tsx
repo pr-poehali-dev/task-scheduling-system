@@ -17,6 +17,7 @@ const navItems: NavItem[] = [
 ];
 
 const adminItems: NavItem[] = [
+  { id: 'import', label: 'Импорт Excel', icon: 'FileUp' },
   { id: 'admin', label: 'Администрирование', icon: 'Settings' },
 ];
 
