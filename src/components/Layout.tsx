@@ -12,10 +12,10 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const pageTitles: Record<string, string> = {
-    dashboard: 'Дашборд',
-    orders: 'Наряды',
-    workers: 'База рабочих',
-    objects: 'Объекты',
+    dashboard: 'План работ на день',
+    orders: 'Наряды-задания',
+    workers: 'Табель персонала',
+    objects: 'Виды работ',
     archive: 'Архив нарядов',
     statistics: 'Статистика и отчёты',
     admin: 'Администрирование',

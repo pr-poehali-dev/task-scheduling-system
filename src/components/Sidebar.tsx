@@ -8,10 +8,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { id: 'dashboard', label: 'Дашборд', icon: 'LayoutDashboard' },
-  { id: 'orders', label: 'Наряды', icon: 'ClipboardList', badge: 5 },
-  { id: 'workers', label: 'База рабочих', icon: 'Users' },
-  { id: 'objects', label: 'Объекты', icon: 'Building2' },
+  { id: 'dashboard', label: 'План работ', icon: 'LayoutDashboard' },
+  { id: 'orders', label: 'Наряды-задания', icon: 'ClipboardList', badge: 2 },
+  { id: 'workers', label: 'Табель персонала', icon: 'CalendarDays' },
+  { id: 'objects', label: 'Виды работ', icon: 'Leaf' },
   { id: 'archive', label: 'Архив нарядов', icon: 'Archive' },
   { id: 'statistics', label: 'Статистика', icon: 'BarChart3' },
 ];
@@ -32,11 +32,11 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
       <div className="h-14 flex items-center px-4 border-b border-sidebar-border shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-md bg-sidebar-primary flex items-center justify-center">
-            <Icon name="Zap" size={14} className="text-white" />
+            <Icon name="Leaf" size={14} className="text-white" />
           </div>
           <div>
-            <div className="text-white font-bold text-sm leading-tight">НарядПро</div>
-            <div className="text-sidebar-foreground/50 text-[10px] leading-tight">Управление нарядами</div>
+            <div className="text-white font-bold text-sm leading-tight">АПХ Абакан</div>
+            <div className="text-sidebar-foreground/50 text-[10px] leading-tight">Парковое хозяйство</div>
           </div>
         </div>
       </div>
