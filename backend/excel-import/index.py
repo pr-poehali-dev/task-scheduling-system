@@ -46,6 +46,10 @@ def handler(event: dict, context) -> dict:
 
     file_bytes = base64.b64decode(file_b64)
 
+    # Диагностический режим — возвращает структуру файла без сохранения
+    if file_type == "debug":
+        return debug_file(file_bytes)
+
     conn = get_conn()
     cur = conn.cursor()
     rows_ok = 0
@@ -259,6 +263,30 @@ def import_orders(cur, file_bytes: bytes):
             errors.append(str(e)[:100])
 
     return ok, err, "; ".join(errors[:5])
+
+
+def debug_file(file_bytes: bytes) -> dict:
+    """Возвращает структуру Excel-файла: листы и первые 15 строк каждого"""
+    from openpyxl import load_workbook
+    from io import BytesIO
+
+    wb = load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
+    result = {}
+
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        sheet_rows = []
+        for i, row in enumerate(ws.iter_rows(values_only=True)):
+            if i >= 15:
+                break
+            sheet_rows.append([str(c) if c is not None else "" for c in row])
+        result[sheet_name] = sheet_rows
+
+    return {
+        "statusCode": 200,
+        "headers": CORS,
+        "body": json.dumps({"sheets": list(wb.sheetnames), "preview": result}, ensure_ascii=False),
+    }
 
 
 def get_import_log(event):

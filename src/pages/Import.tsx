@@ -4,6 +4,7 @@ import Icon from '@/components/ui/icon';
 const API_URL = 'https://functions.poehali.dev/cb72893c-16e7-40a8-ad51-33cdeed88596';
 
 type FileType = 'employees' | 'work_types' | 'timesheet' | 'orders';
+type DebugResult = { sheets: string[]; preview: Record<string, string[][]> } | null;
 
 const FILE_CONFIGS: {
   type: FileType;
@@ -74,6 +75,8 @@ export default function Import() {
     orders: { file: null, status: 'idle', result: null },
   });
   const [log, setLog] = useState<{ time: string; msg: string; ok: boolean }[]>([]);
+  const [debugResult, setDebugResult] = useState<DebugResult>(null);
+  const [debugLoading, setDebugLoading] = useState<FileType | null>(null);
   const inputRefs = useRef<Record<FileType, HTMLInputElement | null>>({
     employees: null, work_types: null, timesheet: null, orders: null,
   });
@@ -131,6 +134,28 @@ export default function Import() {
       }));
       addLog(`✗ Ошибка сети: ${errMsg}`, false);
     }
+  };
+
+  const handleDebug = async (type: FileType) => {
+    const fileState = files[type];
+    if (!fileState.file) return;
+    setDebugLoading(type);
+    setDebugResult(null);
+    try {
+      const arrayBuffer = await fileState.file!.arrayBuffer();
+      const b64 = btoa(new Uint8Array(arrayBuffer).reduce((d, b) => d + String.fromCharCode(b), ''));
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file: b64, type: 'debug', name: fileState.file!.name }),
+      });
+      const data = await res.json();
+      setDebugResult(data);
+      addLog(`Диагностика: ${data.sheets?.length || 0} листов`, true);
+    } catch (e: unknown) {
+      addLog(`Ошибка диагностики: ${e instanceof Error ? e.message : ''}`, false);
+    }
+    setDebugLoading(null);
   };
 
   const handleDrop = (type: FileType, e: React.DragEvent) => {
@@ -258,37 +283,52 @@ export default function Import() {
                   </div>
                 )}
 
-                {/* Button */}
-                <button
-                  onClick={() => handleUpload(cfg.type)}
-                  disabled={!state.file || isLoading}
-                  className={`w-full py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-                    !state.file
-                      ? 'bg-secondary text-muted-foreground cursor-not-allowed'
-                      : isLoading
-                      ? 'bg-primary/70 text-white cursor-wait'
-                      : isDone
-                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                      : 'bg-primary text-white hover:bg-primary/90'
-                  }`}
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Обрабатываю...
-                    </>
-                  ) : isDone ? (
-                    <>
-                      <Icon name="RefreshCw" size={14} />
-                      Загрузить заново
-                    </>
-                  ) : (
-                    <>
-                      <Icon name="Upload" size={14} />
-                      Импортировать
-                    </>
+                {/* Buttons */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleUpload(cfg.type)}
+                    disabled={!state.file || isLoading}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                      !state.file
+                        ? 'bg-secondary text-muted-foreground cursor-not-allowed'
+                        : isLoading
+                        ? 'bg-primary/70 text-white cursor-wait'
+                        : isDone
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        : 'bg-primary text-white hover:bg-primary/90'
+                    }`}
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Обрабатываю...
+                      </>
+                    ) : isDone ? (
+                      <>
+                        <Icon name="RefreshCw" size={14} />
+                        Заново
+                      </>
+                    ) : (
+                      <>
+                        <Icon name="Upload" size={14} />
+                        Импортировать
+                      </>
+                    )}
+                  </button>
+                  {state.file && (
+                    <button
+                      onClick={() => handleDebug(cfg.type)}
+                      disabled={debugLoading === cfg.type}
+                      title="Диагностика — показать структуру файла"
+                      className="px-3 py-2 rounded-lg border border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors text-sm"
+                    >
+                      {debugLoading === cfg.type
+                        ? <div className="w-4 h-4 border-2 border-muted/30 border-t-primary rounded-full animate-spin" />
+                        : <Icon name="ScanSearch" size={15} />
+                      }
+                    </button>
                   )}
-                </button>
+                </div>
               </div>
             </div>
           );
@@ -310,6 +350,45 @@ export default function Import() {
           </div>
         </div>
       </div>
+
+      {/* Debug result */}
+      {debugResult && (
+        <div className="bg-white rounded-xl border border-border overflow-hidden">
+          <div className="px-4 py-3 border-b border-border bg-background/40 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Icon name="ScanSearch" size={14} className="text-primary" />
+              <span className="text-sm font-medium">Структура файла — диагностика</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">{debugResult.sheets.length} листов</span>
+              <button onClick={() => setDebugResult(null)} className="text-muted-foreground hover:text-foreground">
+                <Icon name="X" size={14} />
+              </button>
+            </div>
+          </div>
+          <div className="p-4 space-y-4 max-h-96 overflow-y-auto">
+            {debugResult.sheets.map(sheet => (
+              <div key={sheet}>
+                <div className="text-xs font-semibold text-primary mb-2">Лист: {sheet}</div>
+                <div className="overflow-x-auto">
+                  <table className="text-xs border-collapse w-full">
+                    {(debugResult.preview[sheet] || []).map((row, ri) => (
+                      <tr key={ri} className={ri === 0 ? 'bg-background/60 font-medium' : 'hover:bg-background/40'}>
+                        <td className="border border-border/30 px-1 py-0.5 text-muted-foreground w-6 text-center">{ri + 1}</td>
+                        {row.map((cell, ci) => (
+                          <td key={ci} className={`border border-border/30 px-2 py-0.5 max-w-[150px] truncate ${cell ? '' : 'text-border'}`}>
+                            {cell || '·'}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Log */}
       {log.length > 0 && (
