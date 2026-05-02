@@ -6,9 +6,12 @@ interface LayoutProps {
   children: React.ReactNode;
   currentPage: string;
   onNavigate: (page: string) => void;
+  authUser?: string;
+  authRole?: string;
+  onLogout?: () => void;
 }
 
-export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {
+export default function Layout({ children, currentPage, onNavigate, authUser, onLogout }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const pageTitles: Record<string, string> = {
@@ -59,12 +62,20 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
             </button>
             <div className="flex items-center gap-2 pl-3 border-l border-border">
               <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold">
-                АД
+                {(authUser || 'А').slice(0, 2).toUpperCase()}
               </div>
               <div className="hidden sm:block text-sm">
-                <div className="font-medium leading-tight">Администратор</div>
-                <div className="text-xs text-muted-foreground leading-tight">admin@company.ru</div>
+                <div className="font-medium leading-tight">{authUser || 'Администратор'}</div>
               </div>
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  title="Выйти"
+                  className="ml-1 p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+                >
+                  <Icon name="LogOut" size={15} />
+                </button>
+              )}
             </div>
           </div>
         </header>
