@@ -44,7 +44,14 @@ def handler(event: dict, context) -> dict:
             "body": json.dumps({"error": "Нужны поля file (base64) и type"}),
         }
 
-    file_bytes = base64.b64decode(file_b64)
+    try:
+        file_bytes = base64.b64decode(file_b64)
+    except Exception as e:
+        return {
+            "statusCode": 400,
+            "headers": CORS,
+            "body": json.dumps({"error": f"Ошибка декодирования файла: {str(e)[:100]}"}),
+        }
 
     # Диагностический режим — возвращает структуру файла без сохранения
     if file_type == "debug":

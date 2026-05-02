@@ -102,10 +102,7 @@ export default function Import() {
     addLog(`Загружаю: ${fileState.file!.name}`, true);
 
     try {
-      const arrayBuffer = await fileState.file!.arrayBuffer();
-      const b64 = btoa(
-        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
+      const b64 = await fileToBase64(fileState.file!);
 
       const res = await fetch(API_URL, {
         method: 'POST',
@@ -136,14 +133,26 @@ export default function Import() {
     }
   };
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // result = "data:...;base64,XXXX" — берём только часть после запятой
+        resolve(result.split(',')[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleDebug = async (type: FileType) => {
     const fileState = files[type];
     if (!fileState.file) return;
     setDebugLoading(type);
     setDebugResult(null);
     try {
-      const arrayBuffer = await fileState.file!.arrayBuffer();
-      const b64 = btoa(new Uint8Array(arrayBuffer).reduce((d, b) => d + String.fromCharCode(b), ''));
+      const b64 = await fileToBase64(fileState.file!);
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
