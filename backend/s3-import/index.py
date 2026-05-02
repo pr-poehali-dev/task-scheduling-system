@@ -21,6 +21,11 @@ CORS = {
 BUCKET = 'files'
 PREFIX = 'upload/'
 
+# CDN путь: cdn.poehali.dev/projects/{AWS_ACCESS_KEY_ID}/bucket/...
+# Значит реальный ключ объекта в S3 = просто имя файла или upload/имя
+# Пробуем разные варианты префикса
+PREFIXES_TO_TRY = ['upload/', '', 'bucket/upload/', f'projects/{os.environ.get("AWS_ACCESS_KEY_ID","")}/bucket/upload/']
+
 FILE_TYPE_MAP = {
     'штатные сотрудники': 'employees',
     'виды работ': 'work_types',
@@ -82,15 +87,28 @@ def handler(event: dict, context) -> dict:
 
 
 def list_files() -> dict:
-    """Список Excel-файлов в папке upload/"""
+    """Список Excel-файлов — перебираем все возможные пути"""
     s3 = s3_client()
     try:
-        # Сначала upload/, если пусто — весь бакет
-        response = s3.list_objects_v2(Bucket=BUCKET, Prefix=PREFIX)
-        all_objects = response.get('Contents', [])
-        if not all_objects:
-            response = s3.list_objects_v2(Bucket=BUCKET)
-            all_objects = response.get('Contents', [])
+        all_objects = []
+        buckets_tried = []
+
+        # Пробуем разные бакеты и префиксы
+        for bucket in ['files', os.environ.get('AWS_ACCESS_KEY_ID', ''), 'storage']:
+            if not bucket:
+                continue
+            for prefix in ['upload/', '', 'bucket/upload/']:
+                try:
+                    resp_s3 = s3.list_objects_v2(Bucket=bucket, Prefix=prefix, MaxKeys=50)
+                    contents = resp_s3.get('Contents', [])
+                    buckets_tried.append(f"{bucket}/{prefix}={len(contents)}")
+                    if contents:
+                        all_objects = contents
+                        break
+                except Exception as ex:
+                    buckets_tried.append(f"{bucket}/{prefix}=ERR:{str(ex)[:30]}")
+            if all_objects:
+                break
 
         files = []
         for obj in all_objects:
@@ -115,7 +133,8 @@ def list_files() -> dict:
                     'orders': 'Наряд-задание',
                 }.get(ftype, 'Неизвестный тип'),
             })
-        return resp(200, {"ok": True, "files": files})
+        all_keys = [o['Key'] for o in all_objects]
+        return resp(200, {"ok": True, "files": files, "total_objects": len(all_objects), "all_keys": all_keys, "debug": buckets_tried})
     except Exception as e:
         return resp(500, {"error": str(e)})
 
