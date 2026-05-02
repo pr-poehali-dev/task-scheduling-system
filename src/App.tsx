@@ -1,28 +1,39 @@
-
+import { useState } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import Layout from './components/Layout';
+import Dashboard from './pages/Dashboard';
+import Orders from './pages/Orders';
+import Workers from './pages/Workers';
+import Objects from './pages/Objects';
+import Archive from './pages/Archive';
+import Statistics from './pages/Statistics';
+import Admin from './pages/Admin';
 
-const queryClient = new QueryClient();
+export default function App() {
+  const [currentPage, setCurrentPage] = useState('dashboard');
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'dashboard': return <Dashboard onNavigate={setCurrentPage} />;
+      case 'orders': return <Orders />;
+      case 'workers': return <Workers />;
+      case 'objects': return <Objects />;
+      case 'archive': return <Archive />;
+      case 'statistics': return <Statistics />;
+      case 'admin': return <Admin />;
+      default: return <Dashboard onNavigate={setCurrentPage} />;
+    }
+  };
+
+  return (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <Layout currentPage={currentPage} onNavigate={setCurrentPage}>
+        {renderPage()}
+      </Layout>
     </TooltipProvider>
-  </QueryClientProvider>
-);
-
-export default App;
+  );
+}
